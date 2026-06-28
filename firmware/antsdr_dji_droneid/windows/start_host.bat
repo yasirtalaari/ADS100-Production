@@ -21,15 +21,20 @@ if "%PC_IP%"=="" (
 )
 
 echo.
-echo Configure E200 over COM7 serial (login root / 1), then run:
+echo Configure E200 over COM7 in QSPI mode (login root / analog), then run:
 echo   fw_setenv ipaddr_eth 192.168.1.10
 echo   fw_setenv tcp_serverip %PC_IP%
 echo   fw_setenv tcp_serverport 52002
+echo   fw_setenv gain_mode fast_attack
+echo   fw_setenv heart_beate_time 30
 echo   fw_setenv api_host %PC_IP%
 echo   fw_setenv request_time 1
-echo   fw_setenv gain_mode fast_attack
+echo   fw_setenv auth_secret placeholder
+echo   fw_setenv token_secret placeholder
+echo   fw_setenv device_serial antsdr_e200
 echo   fw_setenv device_mode auto
 echo   reboot
+echo Then flip boot switch back to SD mode and power cycle.
 echo.
 pause
 

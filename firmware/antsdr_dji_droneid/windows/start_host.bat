@@ -38,13 +38,8 @@ echo Then flip boot switch back to SD mode and power cycle.
 echo.
 pause
 
-echo Starting hex logger on port 80 (needs Admin if port 80 blocked)...
-start "O4 Hex Logger" cmd /k python hex_logger.py
-
-timeout /t 2 /nobreak >nul
-
-echo Starting dji_receiver (new firmware mode, port 52002)...
-start "DJI Receiver" cmd /k python dji_receiver.py -d --mode new --listen-port 52002
+echo Starting O4 capture (hex logger + dji_receiver + self-test)...
+start "O4 Capture" cmd /k python run_capture.py --self-test
 
 echo.
 echo Two windows opened. Power on an O4 drone with motors spinning to test.

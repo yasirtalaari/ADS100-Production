@@ -87,3 +87,46 @@ There is NO local O4 crypto algorithm in public code. Local steps are:
 4. O4 drone with motors spinning
 5. Expect dragonscope log: INFP: <serial> lat=... lon=...
    and dji_O,4 lines with non-empty serial field
+
+7) Internet research: "decrypt once online, then locally forever?"
+-----------------------------------------------------------------
+Public sources (as of 2026):
+
+  Official / vendor
+  - DragonScope product page: "Active internet connectivity required for
+    OcuSync 4 telemetry"; without internet → hash-level detection only.
+    https://cemaxecuter.com/?product=dragonscope-drone-id-service
+  - antsdr_dji_droneid / dragonsdr_dji_droneid README: O4 position needs
+    DragonScope; O2/O3 stay fully offline.
+  - dragonscope.py: every decrypt is a remote HTTP call; no local cipher.
+
+  Open-source community
+  - proto17/dji_droneid #50, #60: O3+/O4 described as strongly encrypted;
+    open tools can demodulate/CRC but not recover SN/GPS; paid decrypt
+    rumored, no public algorithm published.
+  - antsdr_dji_droneid #20: encrypted O4 cannot be decoded on the module
+    alone; raw analysis needs other SDR tooling (e.g. GR-droneid), still
+    without a public O4 decrypt key.
+
+What DOES exist locally after one successful online decrypt
+  A) E200 firmware TTL cache (minutes, same flight/session)
+     - "Cache secrect hit [SN: {}]" / "Cached new data [TTL: {}min]"
+     - Reuses SN/GPS for the same packet hash without re-calling cloud
+     - Expires; not a permanent offline decrypt capability
+
+  B) Session hash correlation (not decrypt)
+     - Hash ID (e.g. drone-alert-9dc89f97) is stable for a flight/session
+     - You can map hash → serial yourself AFTER online decrypt once,
+       then label later detections of the SAME hash without crypto
+     - New flight / new session → new hash → need online decrypt again
+       for SN/GPS (GPS also changes every packet)
+
+  C) No public method to turn one cloud plaintext into a local O4 cipher
+     that decrypts future encrypted hex offline.
+
+Practical local reuse (legitimate ops, after you already have online SN):
+  1. When dragonscope prints INFP/CRYP, save: hash, sn, timestamp
+  2. On later dji_O,4 lines with empty serial, if field4 hash matches,
+     attach the saved serial locally in your own logger/UI
+  3. Live GPS/alt/speed for O4 still need fresh online decrypt (or E200
+     cache while TTL is valid) — one old plaintext does not unlock new hex

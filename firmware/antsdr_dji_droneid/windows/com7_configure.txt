@@ -1,0 +1,122 @@
+AntSDR E200 — O4 setup (official README + Windows COM7)
+========================================================
+Source: https://github.com/alphafox02/antsdr_dji_droneid
+
+BOOT SWITCH (important)
+-----------------------
+1. Flip boot switch to **QSPI mode** for one-time fw_setenv config
+2. Connect console USB → COM7 (115200 8N1), power cycle
+3. After config + reboot, power off, flip switch back to **SD mode**, reconnect, power on
+
+SERIAL CONSOLE (COM7)
+---------------------
+  PuTTY: Connection type Serial, COM7, Speed 115200
+  Or:    python -m serial.tools.miniterm COM7 115200
+
+  Login:    root
+  Password: analog          ← serial console (NOT "1")
+  SSH after SD boot: root / 1
+
+VERIFY O4 FIRMWARE
+------------------
+  ps | grep drone
+
+  Good:  drone_dji_rid_decode, droneangle.sh
+  Bad:   done_dji_release  → re-flash build_sdimg_drone_o4.zip to SD card
+
+NETWORK — pick ONE profile
+--------------------------
+
+A) Stock / home LAN (192.168.1.x) — typical Windows PC setup
+   E200 IP:  192.168.1.10
+   PC IP:    192.168.1.9   (your ipconfig Ethernet address)
+
+B) WarDragon Pro default (172.31.100.x)
+   E200 IP:  172.31.100.2
+   PC IP:    172.31.100.1
+
+FULL fw_setenv BLOCK (copy all at once — replace PC IP)
+-------------------------------------------------------
+Stock example (PC = 192.168.1.9):
+
+  fw_setenv ipaddr_eth 192.168.1.10
+  fw_setenv tcp_serverip 192.168.1.9
+  fw_setenv tcp_serverport 52002
+  fw_setenv gain_mode fast_attack
+  fw_setenv heart_beate_time 30
+  fw_setenv api_host 192.168.1.9
+  fw_setenv request_time 1
+  fw_setenv auth_secret placeholder
+  fw_setenv token_secret placeholder
+  fw_setenv device_serial antsdr_e200
+  fw_setenv device_mode auto
+  reboot
+
+WarDragon example (host = 172.31.100.1):
+
+  fw_setenv ipaddr_eth 172.31.100.2
+  fw_setenv tcp_serverip 172.31.100.1
+  fw_setenv tcp_serverport 52002
+  fw_setenv gain_mode fast_attack
+  fw_setenv heart_beate_time 30
+  fw_setenv api_host 172.31.100.1
+  fw_setenv request_time 1
+  fw_setenv auth_secret placeholder
+  fw_setenv token_secret placeholder
+  fw_setenv device_serial antsdr_e200
+  fw_setenv device_mode auto
+  reboot
+
+VERIFY AFTER REBOOT
+-------------------
+  fw_printenv ipaddr_eth tcp_serverip tcp_serverport gain_mode heart_beate_time \
+              api_host request_time auth_secret token_secret device_serial device_mode
+
+Then: power off → flip switch to SD mode → reconnect USB/Ethernet → power on
+
+VARIABLE REFERENCE (from official README)
+-----------------------------------------
+  ipaddr_eth        AntSDR IP (defaults to 192.168.1.10 only if unset)
+  tcp_serverip      Host IP where dji_receiver.py listens
+  tcp_serverport    52002 (must match --listen-port)
+  gain_mode         fast_attack (AD9361 AGC)
+  heart_beate_time  30 (keeps TCP alive)
+  api_host          Host IP where DragonScope / hex logger listens on port 80
+  request_time      1 = fast O4 updates (default in firmware is 30 if unset)
+  auth_secret       placeholder (required, any value)
+  token_secret      placeholder (required, any value)
+  device_serial     antsdr_e200
+  device_mode       auto (5.8 GHz channel hop)
+
+Note: Public O4 firmware has NO defaults for tcp_serverip, api_host, etc.
+      All variables above must be set manually (unlike kit DragonScope firmware).
+
+WINDOWS HOST (your PC)
+----------------------
+  Allow firewall: Python on ports 80 and 52002
+
+  Terminal 1 — hex capture (no license):
+    python hex_logger.py
+
+  Terminal 2 — decoded CSV + ZMQ:
+    python dji_receiver.py -d --mode new --listen-port 52002
+
+  Or run: windows\start_host.bat
+
+  Test: ping <E200 IP>
+
+WHAT YOU GET (public O4 firmware, no DragonScope license)
+-----------------------------------------------------------
+  O2/O3 drones: full serial, GPS, pilot, altitude (offline decode)
+  O4 drones:    hash ID (drone-alert-xxxxxxxx), frequency, RSSI only
+  O4 + license: full GPS via dragonscope.py + dragonscope.cfg + internet
+
+  Encrypted hex hits api_host:80 → logged to o4_encrypted_hex.log
+
+  Motors must be SPINNING — power-on alone does not broadcast DroneID.
+
+DATA PATHS
+----------
+  COM7 serial     → config / console only
+  Ethernet :80    → encrypted hex (api_host)
+  Ethernet :52002 → CSV telemetry (tcp_serverip, E200 connects OUT to you)

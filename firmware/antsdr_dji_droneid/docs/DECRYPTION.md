@@ -54,7 +54,32 @@ O4 detection still works:
 Encrypted hex can be captured via hex_logger.py / dragonscope.py log
 Full serial/GPS for O4 requires licensed remote decrypt + internet
 
-5) How to enable O4 decrypt (if you have a license)
+5) LOCAL handling AFTER server decrypt (no second crypto)
+---------------------------------------------------------
+Once the cloud returns plaintext JSON, everything else is local cache + format.
+
+E200 (process_encrypte.cpp) after HTTP 200:
+  1. Parse JSON fields (from firmware string table next to dji_O,4 format):
+       sn, model, lon, lat, alt, height, gps_time, uuid,
+       pilot_lon, pilot_lat, home_lon, home_lat, yaw, hash
+  2. Cache by packet hash (CacheHttpData):
+       "Cache secrect hit [SN: {}]"
+       "Cached new data [TTL: {}min]"
+       "Cache data packet hit/not hit"
+     → later detections reuse SN/GPS without re-calling the server until TTL expires
+  3. Emit plaintext CSV (same TCP/UDP path as O2/O3):
+       dji_O,4,<freq>,<rssi>,dji(<hash>),<SN>,<lon>,<lat>,...
+
+Host (dji_receiver.py) — local only, no decrypt:
+  if protocol == "4" and field5 (serial) length >= 5:
+      device_type = "DJI O4 (Decrypted)"   # already plaintext from E200
+  else:
+      device_type = "DJI Encrypted (O4)"   # hash-only fallback
+
+There is NO local O4 crypto algorithm in public code. Local steps are:
+  JSON parse → in-memory cache → CSV → ZMQ JSON.
+
+6) How to enable O4 decrypt (if you have a license)
 ---------------------------------------------------
 1. Place dragonscope.cfg next to dragonscope.py (remote URL + license_key)
 2. Run: python3 dragonscope.py   (port 80)
